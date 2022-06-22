@@ -66,10 +66,12 @@ public:
         capacity_ = std::exchange(other.capacity_, 0);
     };
 
-    SimpleVector& operator=(SimpleVector&& other) {
-        items_ = std::move(other.items_);
-        size_ = std::exchange(other.size_, 0);
-        capacity_ = std::exchange(other.capacity_, 0);
+    SimpleVector& operator=(SimpleVector&& rhs) {
+        if (this != &rhs) {
+            items_ = std::move(rhs.items_);
+            size_ = std::exchange(rhs.size_, 0);
+            capacity_ = std::exchange(rhs.capacity_, 0);
+        }
         return *this;
     };
 
