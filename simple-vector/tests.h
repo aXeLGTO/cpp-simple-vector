@@ -50,10 +50,20 @@ inline void TestTemporaryObjConstructor() {
 inline void TestTemporaryObjOperator() {
     const size_t size = 1000000;
     cout << "Test with temporary object, operator=" << endl;
-    SimpleVector<int> moved_vector;
-    assert(moved_vector.GetSize() == 0);
-    moved_vector = GenerateVector(size);
-    assert(moved_vector.GetSize() == size);
+    {
+        SimpleVector<int> moved_vector;
+        assert(moved_vector.GetSize() == 0);
+        moved_vector = GenerateVector(size);
+        assert(moved_vector.GetSize() == size);
+    }
+    {
+        SimpleVector<int> moved_vector({1, 2, 3});
+        assert(moved_vector.GetSize() == 3);
+        assert(moved_vector[0] == 1);
+        moved_vector = GenerateVector(size);
+        assert(moved_vector.GetSize() == size);
+        assert(moved_vector[9] == 10);
+    }
     cout << "Done!" << endl << endl;
 }
 
@@ -72,12 +82,26 @@ inline void TestNamedMoveConstructor() {
 inline void TestNamedMoveOperator() {
     const size_t size = 1000000;
     cout << "Test with named object, operator=" << endl;
-    SimpleVector<int> vector_to_move(GenerateVector(size));
-    assert(vector_to_move.GetSize() == size);
+    {
+        SimpleVector<int> vector_to_move(GenerateVector(size));
+        assert(vector_to_move.GetSize() == size);
 
-    SimpleVector<int> moved_vector = move(vector_to_move);
-    assert(moved_vector.GetSize() == size);
-    assert(vector_to_move.GetSize() == 0);
+        SimpleVector<int> moved_vector = move(vector_to_move);
+        assert(moved_vector.GetSize() == size);
+        assert(vector_to_move.GetSize() == 0);
+    }
+    {
+        SimpleVector<int> vector_to_move(GenerateVector(size));
+        assert(vector_to_move.GetSize() == size);
+
+        SimpleVector<int> moved_vector({3, 2, 1});
+        assert(moved_vector.GetSize() == 3);
+        assert(moved_vector[0] == 3);
+        moved_vector = move(vector_to_move);
+        assert(moved_vector.GetSize() == size);
+        assert(vector_to_move.GetSize() == 0);
+        assert(*vector_to_move.begin() == 3);
+    }
     cout << "Done!" << endl << endl;
 }
 
@@ -102,15 +126,30 @@ inline void TestNoncopiableMoveConstructor() {
 inline void TestNoncopiablePushBack() {
     const size_t size = 5;
     cout << "Test noncopiable push back" << endl;
-    SimpleVector<X> v;
-    for (size_t i = 0; i < size; ++i) {
-        v.PushBack(X(i));
+    {
+        SimpleVector<X> v;
+        for (size_t i = 0; i < size; ++i) {
+            v.PushBack(X(i));
+        }
+
+        assert(v.GetSize() == size);
+
+        for (size_t i = 0; i < size; ++i) {
+            assert(v[i].GetX() == i);
+        }
     }
+    {
+        SimpleVector<X> v;
+        for (size_t i = 0; i < size; ++i) {
+            X item(i);
+            v.PushBack(move(item));
+        }
 
-    assert(v.GetSize() == size);
+        assert(v.GetSize() == size);
 
-    for (size_t i = 0; i < size; ++i) {
-        assert(v[i].GetX() == i);
+        for (size_t i = 0; i < size; ++i) {
+            assert(v[i].GetX() == i);
+        }
     }
     cout << "Done!" << endl << endl;
 }
@@ -118,23 +157,47 @@ inline void TestNoncopiablePushBack() {
 inline void TestNoncopiableInsert() {
     const size_t size = 5;
     cout << "Test noncopiable insert" << endl;
-    SimpleVector<X> v;
-    for (size_t i = 0; i < size; ++i) {
-        v.PushBack(X(i));
-    }
+    {
+        SimpleVector<X> v;
+        for (size_t i = 0; i < size; ++i) {
+            v.PushBack(X(i));
+        }
 
-    // в начало
-    v.Insert(v.begin(), X(size + 1));
-    assert(v.GetSize() == size + 1);
-    assert(v.begin()->GetX() == size + 1);
-    // в конец
-    v.Insert(v.end(), X(size + 2));
-    assert(v.GetSize() == size + 2);
-    assert((v.end() - 1)->GetX() == size + 2);
-    // в середину
-    v.Insert(v.begin() + 3, X(size + 3));
-    assert(v.GetSize() == size + 3);
-    assert((v.begin() + 3)->GetX() == size + 3);
+        // в начало
+        v.Insert(v.begin(), X(size + 1));
+        assert(v.GetSize() == size + 1);
+        assert(v.begin()->GetX() == size + 1);
+        // в конец
+        v.Insert(v.end(), X(size + 2));
+        assert(v.GetSize() == size + 2);
+        assert((v.end() - 1)->GetX() == size + 2);
+        // в середину
+        v.Insert(v.begin() + 3, X(size + 3));
+        assert(v.GetSize() == size + 3);
+        assert((v.begin() + 3)->GetX() == size + 3);
+    }
+    {
+        SimpleVector<X> v;
+        for (size_t i = 0; i < size; ++i) {
+            v.PushBack(X(i));
+        }
+
+        // в начало
+        X item1(size + 1);
+        v.Insert(v.begin(), move(item1));
+        assert(v.GetSize() == size + 1);
+        assert(v.begin()->GetX() == size + 1);
+        // в конец
+        X item2(size + 2);
+        v.Insert(v.end(), move(item2));
+        assert(v.GetSize() == size + 2);
+        assert((v.end() - 1)->GetX() == size + 2);
+        // в середину
+        X item3(size + 3);
+        v.Insert(v.begin() + 3, move(item3));
+        assert(v.GetSize() == size + 3);
+        assert((v.begin() + 3)->GetX() == size + 3);
+    }
     cout << "Done!" << endl << endl;
 }
 
@@ -241,14 +304,18 @@ inline void Test1() {
         v.Resize(old_size + 2);
         assert(v[3] == 0);
     }
+
+    // Resize array of non copyable elements
     {
         SimpleVector<X> v(3);
         v[2] = X(17);
         v.Resize(7);
         assert(v.GetSize() == 7);
         assert(v.GetCapacity() >= v.GetSize());
+        assert(v[0].GetX() == 5);
         assert(v[2].GetX() == 17);
         assert(v[3].GetX() == 5);
+        assert(v[6].GetX() == 5);
     }
 
     // Итерирование по SimpleVector

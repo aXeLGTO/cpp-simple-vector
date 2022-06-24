@@ -83,7 +83,14 @@ public:
 
     // Добавляет элемент в конец вектора
     // При нехватке места увеличивает вдвое вместимость вектора
-    void PushBack(Type item) {
+    void PushBack(const Type& item) {
+        if (size_ == capacity_) {
+            Extend(capacity_ == 0 ? 1 : capacity_ * 2);
+        }
+        items_[size_++] = item;
+    }
+
+    void PushBack(Type&& item) {
         if (size_ == capacity_) {
             Extend(capacity_ == 0 ? 1 : capacity_ * 2);
         }
@@ -94,7 +101,22 @@ public:
     // Возвращает итератор на вставленное значение
     // Если перед вставкой значения вектор был заполнен полностью,
     // вместимость вектора должна увеличиться вдвое, а для вектора вместимостью 0 стать равной 1
-    Iterator Insert(ConstIterator pos, Type value) {
+    Iterator Insert(ConstIterator pos, const Type& value) {
+        assert(begin() <= pos && pos <= end());
+        auto distance = pos - cbegin();
+
+        if (size_ == capacity_) {
+            Extend(capacity_ == 0 ? 1 : capacity_ * 2);
+        }
+
+        std::copy_backward(std::make_move_iterator(begin() + distance), std::make_move_iterator(end()), end() + 1);
+        ++size_;
+        items_[distance] = value;
+        return begin() + distance;
+    }
+
+    Iterator Insert(ConstIterator pos, Type&& value) {
+        assert(begin() <= pos && pos <= end());
         auto distance = pos - cbegin();
 
         if (size_ == capacity_) {
@@ -114,7 +136,8 @@ public:
 
     // Удаляет элемент вектора в указанной позиции
     Iterator Erase(ConstIterator pos) {
-        std::copy(std::make_move_iterator(const_cast<Iterator>(pos) + 1), std::make_move_iterator(end()), const_cast<Iterator>(pos));
+        assert(begin() <= pos && pos <= end());
+        std::move(const_cast<Iterator>(pos) + 1, end(), const_cast<Iterator>(pos));
         --size_;
         return const_cast<Iterator>(pos);
     }
@@ -143,11 +166,13 @@ public:
 
     // Возвращает ссылку на элемент с индексом index
     Type& operator[](size_t index) noexcept {
+        assert(index < size_);
         return items_[index];
     }
 
     // Возвращает константную ссылку на элемент с индексом index
     const Type& operator[](size_t index) const noexcept {
+        assert(index < size_);
         return items_[index];
     }
 
@@ -178,7 +203,7 @@ public:
     // При увеличении размера новые элементы получают значение по умолчанию для типа Type
     void Resize(size_t new_size) {
         if (size_ < new_size && new_size <= capacity_) {
-            Fill(end(), begin() + new_size, Type{});
+            Fill(end(), begin() + new_size);
         } else if (new_size > capacity_) {
             Extend(std::max(new_size, capacity_ * 2));
         }
@@ -230,16 +255,16 @@ private:
 
     void Extend(size_t new_capacity) {
         ArrayPtr<Type> ptr(new_capacity);
-        std::copy(std::make_move_iterator(begin()), std::make_move_iterator(end()), ptr.Get());
+        std::move(begin(), end(), ptr.Get());
         items_.swap(ptr);
         capacity_ = new_capacity;
     }
 
     template< typename Iterator>
-    void Fill(Iterator first, Iterator last, Type value)
+    void Fill(Iterator first, Iterator last)
     {
         for (; first != last; ++first) {
-            *first = std::move(value);
+            *first = {};
         }
     }
 
@@ -250,7 +275,7 @@ private:
 
 template <typename Type>
 inline bool operator==(const SimpleVector<Type>& lhs, const SimpleVector<Type>& rhs) {
-    return lhs <= rhs && rhs <= lhs;
+    return std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
 }
 
 template <typename Type>

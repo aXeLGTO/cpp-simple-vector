@@ -29,11 +29,11 @@ public:
     ArrayPtr& operator=(const ArrayPtr&) = delete;
 
     ArrayPtr(ArrayPtr&& other) {
-        raw_ptr_ = std::exchange(other.raw_ptr_, nullptr);
+        swap(other);
     }
 
     ArrayPtr& operator=(ArrayPtr&& other) {
-        raw_ptr_ = std::exchange(other.raw_ptr_, nullptr);
+        swap(other);
         return *this;
     }
 
